@@ -9,8 +9,17 @@ def get_commit_info():
 
 def get_commit_dates(commit_info):
     lines = commit_info.split("\n")
-    author_date = int(lines[1].split(" ")[-2])
-    committer_date = int(lines[2].split(" ")[-2])
+    author_date = ""
+    committer_date = ""
+    
+    for line in lines:
+        arr = line.split(" ")
+        if len(arr) > 0:
+            if arr[0] == "author":
+                author_date = int(arr[-2])
+            if arr[0] == "committer":
+                committer_date = int(arr[-2])
+    
     return {
         "author_date": author_date,
         "committer_date": committer_date,
@@ -19,12 +28,14 @@ def get_commit_dates(commit_info):
 
 def change_commit_info(commit_info, new_values):
     lines = commit_info.split("\n")
-    author_date = lines[1].split(" ")
-    committer_date = lines[2].split(" ")
-    author_date[-2] = str(new_values["author_date"])
-    committer_date[-2] = str(new_values["committer_date"])
-    lines[1] = " ".join(author_date)
-    lines[2] = " ".join(committer_date)
+    for i, line in enumerate(lines):
+        arr = line.split(" ")
+        if len(arr) > 0:
+            if arr[0] == "author":
+                arr[-2] = str(new_values["author_date"])
+            if arr[0] == "committer":
+                arr[-2] = str(new_values["committer_date"])
+            lines[i] = " ".join(arr)
     return "\n".join(lines)
 
 
@@ -40,13 +51,15 @@ def validate_hash(commit_hash):
 
 
 def get_text_item(item):
-    return str(item[0]).rjust(4) + ") " + str(item[1][0:7])
+    return item[1][0:7]
 
 
 def print_by_columns(arr):
     terminal_width = os.get_terminal_size().columns
     terminal_height = os.get_terminal_size().lines
-    max_columns = max(terminal_width // 16, 1)
+    max_columns = max(terminal_width // 10, 1)
+    
+    arr = sorted(arr, key=lambda x: x[1])
     
     lines = []
     for i in range(0, len(arr), max_columns):
@@ -61,8 +74,7 @@ def print_by_columns(arr):
             print(line)
     
 
-def generate_items():
-    commit_info = get_commit_info()
+def generate_items(commit_info):
     values = get_commit_dates(commit_info)
     values["author_date"] = values["author_date"] + args.start
     
@@ -81,16 +93,28 @@ def generate_items():
 def print_select_item():
     commit_info = get_commit_info()
     values = get_commit_dates(commit_info)
+    arr = generate_items(commit_info)
+    
+    index = -1
+    for i, item in enumerate(arr):
+        if item[1][0:7] == args.select:
+            index = item[0]
+            break
+    
+    if index == -1:
+        print("Wrong prefix")
+        return
+    
     values["author_date"] = values["author_date"] + args.start
-    values["committer_date"] = values["author_date"] + args.select
+    values["committer_date"] = values["author_date"] + index
     new_commit_info = change_commit_info(commit_info, values)
     new_commit_hash = get_commit_hash(new_commit_info)
     
-    print("Hash=%s" % (new_commit_hash[0:7]))
-    print("GIT_COMMITTER_DATE='%s' git commit --amend -C HEAD --date='%s'" % \
-        (values["committer_date"], values["author_date"]))
-    
-    if args.apply:
+    if not args.apply:
+        print("Hash=%s" % (new_commit_hash[0:7]))
+        print("GIT_COMMITTER_DATE='%s' git commit --amend -C HEAD --date='%s'" % \
+            (values["committer_date"], values["author_date"]))
+    else:
         env = os.environ.copy()
         env["GIT_COMMITTER_DATE"] = str(values["committer_date"])
         command = ["git", "commit", "--amend", "-C", "HEAD", "--date='%s'" % values["author_date"]]
@@ -101,7 +125,7 @@ def print_select_item():
 parser = argparse.ArgumentParser()
 parser.add_argument("--apply", action="store_true", help="Select and apply")
 parser.add_argument("--prefix", help="Set start prefix")
-parser.add_argument("--select", type=int, help="Select item")
+parser.add_argument("--select", type=str, help="Select item")
 parser.add_argument("--start", type=int, default=0, help="Time offset")
 
 # Parse arguments
@@ -111,5 +135,5 @@ if args.select is not None:
     print_select_item()
 
 else:
-    arr = generate_items()
+    arr = generate_items(get_commit_info())
     print_by_columns(arr)
