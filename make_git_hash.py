@@ -44,14 +44,22 @@ def get_commit_hash(commit):
     return hashlib.sha1(commit_str.encode('utf8')).hexdigest()
 
 
+def get_commit_short_hash(commit_hash):
+    return commit_hash[0:7]
+
+
 def validate_hash(commit_hash):
+    result = True;
     if args.prefix and commit_hash[0:len(args.prefix)] != args.prefix:
-        return False
-    return True
+        result = False
+    if args.number:
+        if not get_commit_short_hash(commit_hash).isdigit():
+            return False
+    return result
 
 
 def get_text_item(item):
-    return item[1][0:7]
+    return get_commit_short_hash(item[1])
 
 
 def print_by_columns(arr):
@@ -97,7 +105,7 @@ def print_select_item():
     
     index = -1
     for i, item in enumerate(arr):
-        if item[1][0:7] == args.select:
+        if get_commit_short_hash(item[1]) == args.select:
             index = item[0]
             break
     
@@ -111,7 +119,7 @@ def print_select_item():
     new_commit_hash = get_commit_hash(new_commit_info)
     
     if not args.apply:
-        print("Hash=%s" % (new_commit_hash[0:7]))
+        print("Hash=%s" % (get_commit_short_hash(new_commit_hash)))
         print("GIT_COMMITTER_DATE='%s' git commit --amend -C HEAD --date='%s'" % \
             (values["committer_date"], values["author_date"]))
     else:
@@ -124,6 +132,7 @@ def print_select_item():
 # Create parser
 parser = argparse.ArgumentParser()
 parser.add_argument("--apply", action="store_true", help="Select and apply")
+parser.add_argument("--number", action="store_true", help="Show only numbers")
 parser.add_argument("--prefix", help="Set start prefix")
 parser.add_argument("--select", type=str, help="Select item")
 parser.add_argument("--start", type=int, default=0, help="Time offset")
