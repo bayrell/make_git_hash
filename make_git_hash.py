@@ -100,7 +100,6 @@ def generate_items(commit_info):
 
 def print_select_item():
     commit_info = get_commit_info()
-    values = get_commit_dates(commit_info)
     arr = generate_items(commit_info)
     
     index = -1
@@ -113,6 +112,7 @@ def print_select_item():
         print("Wrong prefix")
         return
     
+    values = get_commit_dates(commit_info)
     values["author_date"] = values["author_date"] + args.start
     values["committer_date"] = values["author_date"] + index
     new_commit_info = change_commit_info(commit_info, values)
