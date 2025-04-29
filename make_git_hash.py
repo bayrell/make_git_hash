@@ -80,16 +80,23 @@ def print_by_columns(arr):
     else:
         for line in lines:
             print(line)
-    
 
-def generate_items(commit_info):
+
+def set_date(values, author_date, committer_date=-1):
+    if committer_date == -1:
+        committer_date = author_date
+    
+    values["author_date"] = author_date
+    values["committer_date"] = committer_date
+
+
+def generate_items(commit_info, start=0, end=1800):
     values = get_commit_dates(commit_info)
-    values["author_date"] = values["author_date"] + args.start
     
     arr = []
-    committer_date = values["author_date"]
-    for i in range(1, 1800):
-        values["committer_date"] = committer_date + i
+    committer_date = values["author_date"] + args.start
+    for i in range(start, end):
+        set_date(values, committer_date + i)
         new_commit_info = change_commit_info(commit_info, values)
         new_commit_hash = get_commit_hash(new_commit_info)
         if validate_hash(new_commit_hash):
@@ -100,7 +107,7 @@ def generate_items(commit_info):
 
 def print_select_item():
     commit_info = get_commit_info()
-    arr = generate_items(commit_info)
+    arr = generate_items(commit_info, -3600, 3600)
     
     index = -1
     for i, item in enumerate(arr):
@@ -113,8 +120,7 @@ def print_select_item():
         return
     
     values = get_commit_dates(commit_info)
-    values["author_date"] = values["author_date"] + args.start
-    values["committer_date"] = values["author_date"] + index
+    set_date(values, values["author_date"] + args.start + index)
     new_commit_info = change_commit_info(commit_info, values)
     new_commit_hash = get_commit_hash(new_commit_info)
     
