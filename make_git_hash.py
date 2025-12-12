@@ -127,13 +127,13 @@ def generate_items(commit_info, start=0, end=1800):
     return arr
 
 
-def print_select_item(start=-3600, end=3600):
+def print_select_item(short_hash, apply=False, start=-3600, end=3600):
     commit_info = get_commit_info()
     arr = generate_items(commit_info, start, end)
     
     index = -1
     for i, item in enumerate(arr):
-        if get_commit_short_hash(item["hash"]) == args.select:
+        if get_commit_short_hash(item["hash"]) == short_hash:
             index = item["index"]
             break
     
@@ -146,7 +146,7 @@ def print_select_item(start=-3600, end=3600):
     new_commit_info = change_commit_info(commit_info, values)
     new_commit_hash = get_commit_hash(new_commit_info)
     
-    if not args.apply:
+    if not apply:
         print("Hash=%s" % (get_commit_short_hash(new_commit_hash)))
         print("GIT_COMMITTER_DATE='%s' git commit --amend -C HEAD --date='%s'" % \
             (values["committer_date"], values["author_date"]))
@@ -170,11 +170,15 @@ parser.add_argument("--start", type=int, default=0, help="Time offset")
 args = parser.parse_args()
 
 if args.select is not None:
-    print_select_item()
+    print_select_item(args.select, args.apply)
 
 elif args.info:
     print(get_commit_info())
 
 else:
-    arr = generate_items(get_commit_info(), start=-60, end=60)
+    arr = []
+    if args.prefix or args.number:
+        arr = generate_items(get_commit_info(), start=-3600, end=3600)
+    else:
+        arr = generate_items(get_commit_info(), start=-60, end=60)
     print_by_columns(arr)
