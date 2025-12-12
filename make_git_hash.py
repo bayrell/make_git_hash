@@ -83,12 +83,9 @@ def print_by_columns(arr):
             matrix[i].append(None)
         start = start + count
     
-    def get_matrix_item(matrix, k, i):
-        return matrix[k][i]
-    
     lines = []
     for i in range(0, count_lines):
-        items = [get_text_item(get_matrix_item(matrix, k, i)) for k in range(max_columns)]
+        items = [get_text_item(matrix[k][i]) for k in range(max_columns)]
         items = list(filter(lambda s: s != "", items))
         lines.append("  ".join(items))
     
@@ -126,7 +123,18 @@ def generate_items(commit_info, start=0, end=1800):
     return arr
 
 
-def print_select_item(short_hash, apply=False, start=-3600, end=3600):
+def commit(author_date, committer_date=None, apply=True):
+    
+    if committer_date is None:
+        committer_date = author_date
+    
+    env = os.environ.copy()
+    env["GIT_COMMITTER_DATE"] = str(committer_date)
+    command = ["git", "commit", "--amend", "-C", "HEAD", "--date='%s'" % author_date]
+    subprocess.run(command, env=env)
+
+
+def print_select_item(short_hash, start=-3600, end=3600):
     commit_info = get_commit_info()
     arr = generate_items(commit_info, start, end)
     
@@ -145,17 +153,15 @@ def print_select_item(short_hash, apply=False, start=-3600, end=3600):
     new_commit_info = change_commit_info(commit_info, values)
     new_commit_hash = get_commit_hash(new_commit_info)
     
-    if not apply:
+    if not args.apply:
         print("Hash=%s" % (get_commit_short_hash(new_commit_hash)))
         print("GIT_COMMITTER_DATE='%s' git commit --amend -C HEAD --date='%s'" % \
             (values["committer_date"], values["author_date"]))
+    
     else:
-        env = os.environ.copy()
-        env["GIT_COMMITTER_DATE"] = str(values["committer_date"])
-        command = ["git", "commit", "--amend", "-C", "HEAD", "--date='%s'" % values["author_date"]]
-        subprocess.run(command, env=env)
+        commit(committer_date=values["committer_date"], author_date=values["author_date"])
 
-        
+
 # Create parser
 parser = argparse.ArgumentParser()
 parser.add_argument("--apply", action="store_true", help="Select and apply")
@@ -164,12 +170,16 @@ parser.add_argument("--info", action="store_true", help="Show info")
 parser.add_argument("--prefix", help="Set start prefix")
 parser.add_argument("--select", type=str, help="Select item")
 parser.add_argument("--start", type=int, default=0, help="Time offset")
+parser.add_argument("--commit", type=str, help="Commit")
 
 # Parse arguments
 args = parser.parse_args()
 
 if args.select is not None:
-    print_select_item(args.select, args.apply)
+    print_select_item(args.select)
+
+elif args.commit is not None:
+    commit(args.commit)
 
 elif args.info:
     print(get_commit_info())
