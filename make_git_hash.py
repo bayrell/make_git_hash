@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import sys, os, subprocess, hashlib, argparse
+import sys, os, subprocess, hashlib, argparse, math
+from datetime import datetime
 
 
 def get_commit_info():
@@ -59,21 +60,38 @@ def validate_hash(commit_hash):
 
 
 def get_text_item(item):
-    return get_commit_short_hash(item[1])
+    if item is None:
+        return ""
+    time = datetime.fromtimestamp(item["time"]).strftime("%H:%M:%S")
+    return time + "  " + get_commit_short_hash(item["hash"])
 
 
 def print_by_columns(arr):
     terminal_width = os.get_terminal_size().columns
     terminal_height = os.get_terminal_size().lines
-    max_columns = max(terminal_width // 10, 1)
+    max_columns = max(terminal_width // 20, 1)
+    count_lines = math.ceil(len(arr) / max_columns)
+    count_last_row = max_columns + len(arr) - count_lines * max_columns
     
-    arr = sorted(arr, key=lambda x: x[1])
+    arr = sorted(arr, key=lambda x: x["time"])
+    start = 0
+    matrix = {}
+    
+    for i in range(max_columns):
+        count = count_lines if i < count_last_row else count_lines - 1
+        matrix[i] = arr[start:start + count]
+        if i >= count_last_row:
+            matrix[i].append(None)
+        start = start + count
+    
+    def get_matrix_item(matrix, k, i):
+        return matrix[k][i]
     
     lines = []
-    for i in range(0, len(arr), max_columns):
-        items = arr[i:i + max_columns]
-        items = [get_text_item(item) for item in items]
-        lines.append("   ".join(items))
+    for i in range(0, count_lines):
+        items = [get_text_item(get_matrix_item(matrix, k, i)) for k in range(max_columns)]
+        items = list(filter(lambda s: s != "", items))
+        lines.append(" | ".join(items))
     
     if len(lines) > terminal_height - 5:
         subprocess.run(["less"], input="\n".join(lines), text=True)
@@ -100,19 +118,23 @@ def generate_items(commit_info, start=0, end=1800):
         new_commit_info = change_commit_info(commit_info, values)
         new_commit_hash = get_commit_hash(new_commit_info)
         if validate_hash(new_commit_hash):
-            arr.append((i, new_commit_hash))
+            arr.append({
+                "index": i,
+                "hash": new_commit_hash,
+                "time": committer_date + i,
+            })
     
     return arr
 
 
-def print_select_item():
+def print_select_item(start=-3600, end=3600):
     commit_info = get_commit_info()
-    arr = generate_items(commit_info, -3600, 3600)
+    arr = generate_items(commit_info, start, end)
     
     index = -1
     for i, item in enumerate(arr):
-        if get_commit_short_hash(item[1]) == args.select:
-            index = item[0]
+        if get_commit_short_hash(item["hash"]) == args.select:
+            index = item["index"]
             break
     
     if index == -1:
@@ -139,6 +161,7 @@ def print_select_item():
 parser = argparse.ArgumentParser()
 parser.add_argument("--apply", action="store_true", help="Select and apply")
 parser.add_argument("--number", action="store_true", help="Show only numbers")
+parser.add_argument("--info", action="store_true", help="Show info")
 parser.add_argument("--prefix", help="Set start prefix")
 parser.add_argument("--select", type=str, help="Select item")
 parser.add_argument("--start", type=int, default=0, help="Time offset")
@@ -149,6 +172,9 @@ args = parser.parse_args()
 if args.select is not None:
     print_select_item()
 
+elif args.info:
+    print(get_commit_info())
+
 else:
-    arr = generate_items(get_commit_info())
+    arr = generate_items(get_commit_info(), start=-60, end=60)
     print_by_columns(arr)
