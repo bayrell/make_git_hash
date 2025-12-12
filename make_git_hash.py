@@ -62,14 +62,13 @@ def validate_hash(commit_hash):
 def get_text_item(item):
     if item is None:
         return ""
-    time = datetime.fromtimestamp(item["time"]).strftime("%H:%M:%S")
-    return time + "  " + get_commit_short_hash(item["hash"])
+    return get_commit_short_hash(item["hash"])
 
 
 def print_by_columns(arr):
     terminal_width = os.get_terminal_size().columns
     terminal_height = os.get_terminal_size().lines
-    max_columns = max(terminal_width // 20, 1)
+    max_columns = max(terminal_width // 10, 1)
     count_lines = math.ceil(len(arr) / max_columns)
     count_last_row = max_columns + len(arr) - count_lines * max_columns
     
@@ -91,7 +90,7 @@ def print_by_columns(arr):
     for i in range(0, count_lines):
         items = [get_text_item(get_matrix_item(matrix, k, i)) for k in range(max_columns)]
         items = list(filter(lambda s: s != "", items))
-        lines.append(" | ".join(items))
+        lines.append("  ".join(items))
     
     if len(lines) > terminal_height - 5:
         subprocess.run(["less"], input="\n".join(lines), text=True)
@@ -180,5 +179,5 @@ else:
     if args.prefix or args.number:
         arr = generate_items(get_commit_info(), start=-3600, end=3600)
     else:
-        arr = generate_items(get_commit_info(), start=-60, end=60)
+        arr = generate_items(get_commit_info(), start=-30, end=30)
     print_by_columns(arr)
